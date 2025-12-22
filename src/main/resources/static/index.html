@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NBP/DR 실시간 전환 모니터링 대시보드</title>
+    <link rel="stylesheet" href="css/dashboard.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>NBP/DR 실시간 전환 모니터링 대시보드</h1>
+            <div class="status-indicator">
+                <span id="connection-status" class="status-ok">연결됨</span>
+                <span id="last-update">마지막 업데이트: --</span>
+            </div>
+        </header>
+
+        <main>
+            <section class="service-overview">
+                <h2>서비스 현황</h2>
+                <div id="service-list" class="service-grid">
+                    <!-- 서비스 목록이 동적으로 로드됩니다 -->
+                </div>
+            </section>
+
+            <section class="service-detail" id="service-detail" style="display: none;">
+                <h2>서비스 상세 정보</h2>
+                <div class="detail-content">
+                    <div class="ratio-display">
+                        <canvas id="ratio-chart"></canvas>
+                    </div>
+                    <div class="history-chart">
+                        <canvas id="history-chart"></canvas>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="js/dashboard.js"></script>
+    <!-- TODO: Task 4.1, 4.2, 4.3에서 상세 구현 예정 -->
+</body>
+</html>
