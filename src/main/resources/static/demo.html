@@ -1,0 +1,1907 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NBP/DR 실시간 전환 모니터링 대시보드 - 데모</title>
+    <link rel="stylesheet" href="css/dashboard.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* 데모용 추가 스타일 */
+        .demo-banner {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 10px 20px;
+            text-align: center;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+        
+        .search-container {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            margin-bottom: 30px;
+            border: 1px solid #e8ecef;
+        }
+        
+        .search-box {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .search-input {
+            flex: 1;
+            min-width: 250px;
+            padding: 12px 16px;
+            border: 2px solid #e8ecef;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        
+        .search-input:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+        
+        .filter-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .filter-btn {
+            padding: 8px 16px;
+            border: 2px solid #e8ecef;
+            background: white;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s;
+            color: #7f8c8d;
+        }
+        
+        .filter-btn.active {
+            background: #3498db;
+            border-color: #3498db;
+            color: white;
+        }
+        
+        .filter-btn:hover {
+            border-color: #3498db;
+            color: #3498db;
+        }
+        
+        .filter-btn.active:hover {
+            color: white;
+        }
+        
+        .service-card.status-ok {
+            border-left: 5px solid #27ae60;
+        }
+        
+        .service-card.status-warning {
+            border-left: 5px solid #f39c12;
+        }
+        
+        .service-card.status-error {
+            border-left: 5px solid #e74c3c;
+        }
+        
+        .service-card.hidden {
+            display: none;
+        }
+        
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 300px;
+            margin: 0 auto;
+        }
+        
+        .chart-placeholder {
+            width: 100%;
+            height: 200px;
+            background: linear-gradient(45deg, #f8f9fa 25%, transparent 25%), 
+                        linear-gradient(-45deg, #f8f9fa 25%, transparent 25%), 
+                        linear-gradient(45deg, transparent 75%, #f8f9fa 75%), 
+                        linear-gradient(-45deg, transparent 75%, #f8f9fa 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+            border: 2px dashed #dee2e6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #6c757d;
+            font-size: 14px;
+            border-radius: 4px;
+        }
+        
+        .metric-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .metric-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        
+        .metric-label {
+            color: #7f8c8d;
+            margin-top: 5px;
+        }
+        
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid #ecf0f1;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.3s;
+            white-space: nowrap;
+        }
+        
+        .tab.active {
+            border-bottom-color: #3498db;
+            color: #3498db;
+            font-weight: bold;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .donut-chart-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .chart-info {
+            padding: 20px;
+        }
+        
+        .chart-legend {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .legend-group {
+            margin-bottom: 10px;
+        }
+        
+        .legend-group h5 {
+            margin: 0 0 5px 0;
+            font-size: 0.85em;
+            font-weight: bold;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 3px;
+            font-size: 0.8em;
+        }
+        
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        
+        .legend-nbp {
+            background: #3498db;
+        }
+        
+        .legend-dr {
+            background: #e74c3c;
+        }
+        
+        .no-results {
+            text-align: center;
+            padding: 40px;
+            color: #7f8c8d;
+            font-style: italic;
+        }
+        
+        /* 서버별 상세 현황 스타일 */
+        .server-details-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+        
+        .server-group {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            border: 1px solid #e8ecef;
+        }
+        
+        .server-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .server-item {
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid transparent;
+            transition: all 0.3s ease;
+        }
+        
+        .server-item:hover {
+            background: #e9ecef;
+            transform: translateX(5px);
+        }
+        
+        .server-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+        
+        .server-name {
+            font-weight: bold;
+            color: #2c3e50;
+            min-width: 100px;
+        }
+        
+        .server-ip {
+            color: #7f8c8d;
+            font-size: 0.9em;
+            flex: 1;
+        }
+        
+        .server-status {
+            font-size: 1.2em;
+        }
+        
+        .server-status.status-ok {
+            color: #27ae60;
+        }
+        
+        .server-status.status-warning {
+            color: #f39c12;
+        }
+        
+        .server-status.status-error {
+            color: #e74c3c;
+        }
+        
+        .server-metrics {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 8px;
+        }
+        
+        .metric {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .metric-label {
+            font-size: 0.85em;
+            color: #7f8c8d;
+        }
+        
+        .metric-value {
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        
+        .server-bar {
+            height: 6px;
+            background: #ecf0f1;
+            border-radius: 3px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .bar-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.5s ease;
+            position: relative;
+        }
+        
+        .bar-fill::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 2px;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.5);
+        }
+        
+        @media (max-width: 768px) {
+            .search-box {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .search-input {
+                min-width: auto;
+            }
+            
+            .filter-buttons {
+                justify-content: center;
+            }
+            
+            .donut-chart-section {
+                grid-template-columns: 1fr;
+                text-align: center;
+            }
+            
+            .tabs {
+                overflow-x: auto;
+                white-space: nowrap;
+            }
+            
+            .server-details-grid {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+            
+            .server-metrics {
+                flex-direction: column;
+                gap: 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="demo-banner">
+            🚀 NBP/DR 모니터링 대시보드 데모 - 실제 데이터 연동 전 미리보기
+        </div>
+
+        <header>
+            <h1>NBP/DR 실시간 전환 모니터링 대시보드</h1>
+            <div class="status-indicator">
+                <span id="connection-status" class="status-ok">연결됨</span>
+                <span id="last-update">마지막 업데이트: 2024-12-22 15:30:25</span>
+            </div>
+        </header>
+
+        <!-- 전체 현황 메트릭 -->
+        <section class="metrics-overview">
+            <div class="service-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+                <div class="metric-card">
+                    <div class="metric-value">3</div>
+                    <div class="metric-label">총 서비스</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">8</div>
+                    <div class="metric-label">총 서버</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">75%</div>
+                    <div class="metric-label">평균 NBP 비율</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">25%</div>
+                    <div class="metric-label">평균 DR 비율</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 검색 및 필터 섹션 -->
+        <section class="search-container">
+            <div class="search-box">
+                <input type="text" class="search-input" placeholder="서비스명 또는 IP 주소로 검색..." id="searchInput">
+                <div class="filter-buttons">
+                    <button class="filter-btn active" data-filter="all">전체</button>
+                    <button class="filter-btn" data-filter="L4">L4</button>
+                    <button class="filter-btn" data-filter="GLB">GLB</button>
+                    <button class="filter-btn" data-filter="ok">정상</button>
+                    <button class="filter-btn" data-filter="warning">경고</button>
+                    <button class="filter-btn" data-filter="error">오류</button>
+                </div>
+            </div>
+        </section>
+
+        <main>
+            <section class="service-overview">
+                <h2>서비스 현황</h2>
+                <div id="service-list" class="service-grid">
+                    <!-- 웹 서비스 카드 (L4 - 서버별 상세) -->
+                    <div class="service-card status-ok" data-service-id="WEB_SERVICE" data-type="L4" data-status="ok">
+                        <h3>웹 서비스</h3>
+                        <p>타입: L4 | VIP: 10.10.1.100:80</p>
+                        <div class="donut-chart-section">
+                            <div class="chart-container">
+                                <canvas id="chart-WEB_SERVICE" width="150" height="150"></canvas>
+                            </div>
+                            <div class="chart-info">
+                                <p><strong>NBP: 80% | DR: 20%</strong></p>
+                                <p style="font-size: 0.9em; color: #7f8c8d;">
+                                    총 1,556 세션
+                                </p>
+                                <div class="chart-legend">
+                                    <div class="legend-group">
+                                        <h5 style="color: #3498db; margin-bottom: 5px;">NBP 서버</h5>
+                                        <div class="legend-item">
+                                            <div class="legend-color" style="background: #3498db;"></div>
+                                            <span>NBP-01 (500)</span>
+                                        </div>
+                                        <div class="legend-item">
+                                            <div class="legend-color" style="background: #2980b9;"></div>
+                                            <span>NBP-02 (375)</span>
+                                        </div>
+                                        <div class="legend-item">
+                                            <div class="legend-color" style="background: #5dade2;"></div>
+                                            <span>NBP-03 (370)</span>
+                                        </div>
+                                    </div>
+                                    <div class="legend-group">
+                                        <h5 style="color: #e74c3c; margin-bottom: 5px;">DR 서버</h5>
+                                        <div class="legend-item">
+                                            <div class="legend-color" style="background: #e74c3c;"></div>
+                                            <span>DR-01 (120)</span>
+                                        </div>
+                                        <div class="legend-item">
+                                            <div class="legend-color" style="background: #c0392b;"></div>
+                                            <span>DR-02 (100)</span>
+                                        </div>
+                                        <div class="legend-item">
+                                            <div class="legend-color" style="background: #ec7063;"></div>
+                                            <span>DR-03 (91)</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <p class="status status-ok">상태: 정상</p>
+                        <p style="font-size: 0.8em; color: #95a5a6;">
+                            서버: NBP 3대, DR 3대
+                        </p>
+                    </div>
+
+                    <!-- API 서비스 카드 (GLB - 기본) -->
+                    <div class="service-card status-warning" data-service-id="API_SERVICE" data-type="GLB" data-status="warning">
+                        <h3>API 서비스</h3>
+                        <p>타입: GLB | VIP: 10.10.2.100:8080</p>
+                        <div class="donut-chart-section">
+                            <div class="chart-container">
+                                <canvas id="chart-API_SERVICE" width="150" height="150"></canvas>
+                            </div>
+                            <div class="chart-info">
+                                <p><strong>NBP: 60% | DR: 40%</strong></p>
+                                <p style="font-size: 0.9em; color: #7f8c8d;">
+                                    NBP: 892 세션 | DR: 595 세션
+                                </p>
+                                <div class="chart-legend">
+                                    <div class="legend-item">
+                                        <div class="legend-color legend-nbp"></div>
+                                        <span>NBP (892 세션)</span>
+                                    </div>
+                                    <div class="legend-item">
+                                        <div class="legend-color legend-dr"></div>
+                                        <span>DR (595 세션)</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <p class="status status-warning">상태: 경고</p>
+                        <p style="font-size: 0.8em; color: #95a5a6;">
+                            서버: NBP 2대, DR 2대
+                        </p>
+                    </div>
+
+                    <!-- 데이터베이스 서비스 카드 (L4 - 서버별 상세) -->
+                    <div class="service-card status-ok" data-service-id="DB_SERVICE" data-type="L4" data-status="ok">
+                        <h3>데이터베이스 서비스</h3>
+                        <p>타입: L4 | VIP: 10.10.3.100:3306</p>
+                        <div class="donut-chart-section">
+                            <div class="chart-container">
+                                <canvas id="chart-DB_SERVICE" width="150" height="150"></canvas>
+                            </div>
+                            <div class="chart-info">
+                                <p><strong>NBP: 85% | DR: 15%</strong></p>
+                                <p style="font-size: 0.9em; color: #7f8c8d;">
+                                    총 585 세션
+                                </p>
+                                <div class="chart-legend">
+                                    <div class="legend-group">
+                                        <h5 style="color: #3498db; margin-bottom: 5px;">NBP 서버</h5>
+                                        <div class="legend-item">
+                                            <div class="legend-color" style="background: #3498db;"></div>
+                                            <span>NBP-01 (280)</span>
+                                        </div>
+                                        <div class="legend-item">
+                                            <div class="legend-color" style="background: #2980b9;"></div>
+                                            <span>NBP-02 (230)</span>
+                                        </div>
+                                    </div>
+                                    <div class="legend-group">
+                                        <h5 style="color: #e74c3c; margin-bottom: 5px;">DR 서버</h5>
+                                        <div class="legend-item">
+                                            <div class="legend-color" style="background: #e74c3c;"></div>
+                                            <span>DR-01 (45)</span>
+                                        </div>
+                                        <div class="legend-item">
+                                            <div class="legend-color" style="background: #c0392b;"></div>
+                                            <span>DR-02 (30)</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <p class="status status-ok">상태: 정상</p>
+                        <p style="font-size: 0.8em; color: #95a5a6;">
+                            서버: NBP 2대, DR 2대
+                        </p>
+                    </div>
+                </div>
+                
+                <!-- 검색 결과 없음 메시지 -->
+                <div id="no-results" class="no-results" style="display: none;">
+                    <h3>🔍 검색 결과가 없습니다</h3>
+                    <p>다른 검색어나 필터를 시도해보세요.</p>
+                </div>
+            </section>
+
+            <section class="service-detail" id="service-detail">
+                <h2>서비스 상세 정보 - <span id="selected-service-name">웹 서비스</span></h2>
+                
+                <div class="tabs">
+                    <div class="tab active" data-tab="realtime">실시간 현황</div>
+                    <div class="tab" data-tab="history-10min">최근 10분</div>
+                    <div class="tab" data-tab="history-24h">24시간 이력</div>
+                    <div class="tab" data-tab="history-3month">3개월 이력</div>
+                </div>
+
+                <div class="tab-content active" id="realtime">
+                    <div class="detail-content">
+                        <div class="service-grid">
+                            <div class="metric-card">
+                                <div class="metric-value" style="color: #3498db;">1,245</div>
+                                <div class="metric-label">NBP 세션 수</div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="metric-value" style="color: #e74c3c;">311</div>
+                                <div class="metric-label">DR 세션 수</div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="metric-value" style="color: #27ae60;">1,556</div>
+                                <div class="metric-label">총 세션 수</div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="metric-value" style="color: #f39c12;">80%</div>
+                                <div class="metric-label">NBP 비율</div>
+                            </div>
+                        </div>
+                        
+                        <h3>서버별 상세 현황</h3>
+                        <div class="server-details-grid">
+                            <!-- NBP 서버 상세 -->
+                            <div class="server-group">
+                                <h4 style="color: #3498db; margin-bottom: 15px;">
+                                    <span style="display: inline-block; width: 12px; height: 12px; background: #3498db; border-radius: 50%; margin-right: 8px;"></span>
+                                    NBP 서버 (총 1,245 세션)
+                                </h4>
+                                <div class="server-list">
+                                    <div class="server-item">
+                                        <div class="server-info">
+                                            <span class="server-name">WEB-NBP-01</span>
+                                            <span class="server-ip">(10.10.1.10)</span>
+                                            <span class="server-status status-ok">●</span>
+                                        </div>
+                                        <div class="server-metrics">
+                                            <div class="metric">
+                                                <span class="metric-label">세션:</span>
+                                                <span class="metric-value" id="nbp-01-sessions">425</span>
+                                            </div>
+                                            <div class="metric">
+                                                <span class="metric-label">비율:</span>
+                                                <span class="metric-value">34.2%</span>
+                                            </div>
+                                        </div>
+                                        <div class="server-bar">
+                                            <div class="bar-fill" style="width: 34.2%; background: #3498db;"></div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="server-item">
+                                        <div class="server-info">
+                                            <span class="server-name">WEB-NBP-02</span>
+                                            <span class="server-ip">(10.10.1.11)</span>
+                                            <span class="server-status status-ok">●</span>
+                                        </div>
+                                        <div class="server-metrics">
+                                            <div class="metric">
+                                                <span class="metric-label">세션:</span>
+                                                <span class="metric-value" id="nbp-02-sessions">410</span>
+                                            </div>
+                                            <div class="metric">
+                                                <span class="metric-label">비율:</span>
+                                                <span class="metric-value">32.9%</span>
+                                            </div>
+                                        </div>
+                                        <div class="server-bar">
+                                            <div class="bar-fill" style="width: 32.9%; background: #3498db;"></div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="server-item">
+                                        <div class="server-info">
+                                            <span class="server-name">WEB-NBP-03</span>
+                                            <span class="server-ip">(10.10.1.12)</span>
+                                            <span class="server-status status-ok">●</span>
+                                        </div>
+                                        <div class="server-metrics">
+                                            <div class="metric">
+                                                <span class="metric-label">세션:</span>
+                                                <span class="metric-value" id="nbp-03-sessions">410</span>
+                                            </div>
+                                            <div class="metric">
+                                                <span class="metric-label">비율:</span>
+                                                <span class="metric-value">32.9%</span>
+                                            </div>
+                                        </div>
+                                        <div class="server-bar">
+                                            <div class="bar-fill" style="width: 32.9%; background: #3498db;"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- DR 서버 상세 -->
+                            <div class="server-group">
+                                <h4 style="color: #e74c3c; margin-bottom: 15px;">
+                                    <span style="display: inline-block; width: 12px; height: 12px; background: #e74c3c; border-radius: 50%; margin-right: 8px;"></span>
+                                    DR 서버 (총 311 세션)
+                                </h4>
+                                <div class="server-list">
+                                    <div class="server-item">
+                                        <div class="server-info">
+                                            <span class="server-name">WEB-DR-01</span>
+                                            <span class="server-ip">(10.20.1.10)</span>
+                                            <span class="server-status status-ok">●</span>
+                                        </div>
+                                        <div class="server-metrics">
+                                            <div class="metric">
+                                                <span class="metric-label">세션:</span>
+                                                <span class="metric-value" id="dr-01-sessions">105</span>
+                                            </div>
+                                            <div class="metric">
+                                                <span class="metric-label">비율:</span>
+                                                <span class="metric-value">33.8%</span>
+                                            </div>
+                                        </div>
+                                        <div class="server-bar">
+                                            <div class="bar-fill" style="width: 33.8%; background: #e74c3c;"></div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="server-item">
+                                        <div class="server-info">
+                                            <span class="server-name">WEB-DR-02</span>
+                                            <span class="server-ip">(10.20.1.11)</span>
+                                            <span class="server-status status-ok">●</span>
+                                        </div>
+                                        <div class="server-metrics">
+                                            <div class="metric">
+                                                <span class="metric-label">세션:</span>
+                                                <span class="metric-value" id="dr-02-sessions">103</span>
+                                            </div>
+                                            <div class="metric">
+                                                <span class="metric-label">비율:</span>
+                                                <span class="metric-value">33.1%</span>
+                                            </div>
+                                        </div>
+                                        <div class="server-bar">
+                                            <div class="bar-fill" style="width: 33.1%; background: #e74c3c;"></div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="server-item">
+                                        <div class="server-info">
+                                            <span class="server-name">WEB-DR-03</span>
+                                            <span class="server-ip">(10.20.1.12)</span>
+                                            <span class="server-status status-ok">●</span>
+                                        </div>
+                                        <div class="server-metrics">
+                                            <div class="metric">
+                                                <span class="metric-label">세션:</span>
+                                                <span class="metric-value" id="dr-03-sessions">103</span>
+                                            </div>
+                                            <div class="metric">
+                                                <span class="metric-label">비율:</span>
+                                                <span class="metric-value">33.1%</span>
+                                            </div>
+                                        </div>
+                                        <div class="server-bar">
+                                            <div class="bar-fill" style="width: 33.1%; background: #e74c3c;"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 서버별 트래픽 분산 차트 -->
+                        <h3 style="margin-top: 30px;">서버별 트래픽 분산</h3>
+                        <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                            <canvas id="server-distribution-chart" height="80"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tab-content" id="history-10min">
+                    <h3>최근 10분 실시간 그래프 (Ring Buffer 데이터)</h3>
+                    <p style="color: #7f8c8d; margin-bottom: 20px;">
+                        5초 간격으로 수집된 120개 데이터 포인트 (FIFO 구조)
+                    </p>
+                    <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                        <canvas id="chart-10min" height="100"></canvas>
+                    </div>
+                </div>
+
+                <div class="tab-content" id="history-24h">
+                    <h3>최근 24시간 이력 그래프 (로그 파일 기반)</h3>
+                    <p style="color: #7f8c8d; margin-bottom: 20px;">
+                        5분 단위 다운샘플링, 최대 288 포인트
+                    </p>
+                    <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                        <canvas id="chart-24h" height="100"></canvas>
+                    </div>
+                </div>
+
+                <div class="tab-content" id="history-3month">
+                    <h3>최대 3개월 이력 그래프 (집계 파일 기반)</h3>
+                    <p style="color: #7f8c8d; margin-bottom: 20px;">
+                        일별 집계 데이터, 최대 90일 (매일 00:05 배치 생성)
+                    </p>
+                    <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                        <canvas id="chart-3month" height="100"></canvas>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer style="margin-top: 40px; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: center; color: #7f8c8d;">
+            <p>NBP/DR 실시간 전환 모니터링 대시보드 v1.0.0</p>
+            <p>개발: KGM | 기술스택: Spring Boot 1.5.22 + Java 1.7 + SNMP4J</p>
+        </footer>
+    </div>
+
+    <script>
+        // 데모용 JavaScript
+        let donutCharts = {};
+        let historyCharts = {};
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            // 도넛 차트 초기화
+            initializeDonutCharts();
+            
+            // 이력 그래프 초기화
+            initializeHistoryCharts();
+            
+            // 검색 및 필터 기능 초기화
+            initializeSearchAndFilter();
+            
+            // 서비스 카드 클릭 이벤트
+            const serviceCards = document.querySelectorAll('.service-card');
+            const serviceDetail = document.getElementById('service-detail');
+            const selectedServiceName = document.getElementById('selected-service-name');
+
+            serviceCards.forEach(card => {
+                card.addEventListener('click', function() {
+                    const serviceName = this.querySelector('h3').textContent;
+                    selectedServiceName.textContent = serviceName;
+                    serviceDetail.style.display = 'block';
+                    
+                    // 스크롤 이동
+                    serviceDetail.scrollIntoView({ behavior: 'smooth' });
+                });
+            });
+
+            // 탭 전환 이벤트
+            const tabs = document.querySelectorAll('.tab');
+            const tabContents = document.querySelectorAll('.tab-content');
+
+            tabs.forEach(tab => {
+                tab.addEventListener('click', function() {
+                    const targetTab = this.dataset.tab;
+                    
+                    // 모든 탭 비활성화
+                    tabs.forEach(t => t.classList.remove('active'));
+                    tabContents.forEach(tc => tc.classList.remove('active'));
+                    
+                    // 선택된 탭 활성화
+                    this.classList.add('active');
+                    document.getElementById(targetTab).classList.add('active');
+                    
+                    // 차트 크기 조정 (탭 전환 시 필요)
+                    setTimeout(() => {
+                        Object.values(historyCharts).forEach(chart => {
+                            if (chart) chart.resize();
+                        });
+                    }, 100);
+                });
+            });
+
+            // 실시간 데이터 시뮬레이션
+            setInterval(function() {
+                updateRealTimeData();
+            }, 5000); // 5초마다 업데이트
+
+            console.log('NBP/DR 모니터링 대시보드 데모 로드 완료');
+            console.log('실제 서비스에서는 /api/services API를 통해 실시간 데이터를 가져옵니다.');
+        });
+
+        // 도넛 차트 초기화
+        function initializeDonutCharts() {
+            const services = [
+                { 
+                    id: 'WEB_SERVICE', 
+                    type: 'L4',
+                    nbpServers: [
+                        { name: 'NBP-01', sessions: 500, color: '#3498db' },    // 40%
+                        { name: 'NBP-02', sessions: 375, color: '#2980b9' },    // 30%
+                        { name: 'NBP-03', sessions: 370, color: '#5dade2' }     // 30%
+                    ],
+                    drServers: [
+                        { name: 'DR-01', sessions: 120, color: '#e74c3c' },     // 38%
+                        { name: 'DR-02', sessions: 100, color: '#c0392b' },     // 32%
+                        { name: 'DR-03', sessions: 91, color: '#ec7063' }       // 30%
+                    ]
+                },
+                { 
+                    id: 'API_SERVICE', 
+                    type: 'GLB',
+                    nbp: 60, dr: 40, nbpSessions: 892, drSessions: 595 
+                },
+                { 
+                    id: 'DB_SERVICE', 
+                    type: 'L4',
+                    nbpServers: [
+                        { name: 'NBP-01', sessions: 280, color: '#3498db' },    // 55%
+                        { name: 'NBP-02', sessions: 230, color: '#2980b9' }     // 45%
+                    ],
+                    drServers: [
+                        { name: 'DR-01', sessions: 45, color: '#e74c3c' },      // 60%
+                        { name: 'DR-02', sessions: 30, color: '#c0392b' }       // 40%
+                    ]
+                }
+            ];
+
+            services.forEach(service => {
+                const ctx = document.getElementById(`chart-${service.id}`);
+                if (ctx) {
+                    if (service.type === 'L4') {
+                        // L4 서비스: 서버별 상세 도넛 차트
+                        createDetailedDonutChart(ctx, service);
+                    } else {
+                        // GLB 서비스: 기본 NBP/DR 도넛 차트
+                        createSimpleDonutChart(ctx, service);
+                    }
+                }
+            });
+        }
+
+        // L4 서비스용 상세 도넛 차트 (서버별)
+        function createDetailedDonutChart(ctx, service) {
+            const labels = [];
+            const data = [];
+            const colors = [];
+            
+            // NBP 서버들 추가
+            service.nbpServers.forEach(server => {
+                labels.push(`NBP-${server.name.split('-')[1]}`);
+                data.push(server.sessions);
+                colors.push(server.color);
+            });
+            
+            // DR 서버들 추가
+            service.drServers.forEach(server => {
+                labels.push(`DR-${server.name.split('-')[1]}`);
+                data.push(server.sessions);
+                colors.push(server.color);
+            });
+
+            donutCharts[service.id] = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: colors,
+                        borderWidth: 2,
+                        borderColor: '#ffffff',
+                        cutout: '60%'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.label;
+                                    const value = context.parsed;
+                                    const total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                                    const percentage = ((value / total) * 100).toFixed(1);
+                                    return `${label}: ${value.toLocaleString()} 세션 (${percentage}%)`;
+                                }
+                            }
+                        }
+                    },
+                    animation: {
+                        animateRotate: true,
+                        duration: 1000
+                    }
+                },
+                plugins: [
+                    {
+                        id: 'doughnutLabel',
+                        afterDatasetsDraw: function(chart) {
+                            const ctx = chart.ctx;
+                            const data = chart.data.datasets[0].data;
+                            const total = data.reduce((a, b) => a + b, 0);
+                            
+                            ctx.save();
+                            ctx.font = 'bold 10px Arial';
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'middle';
+                            
+                            const centerX = chart.chartArea.left + (chart.chartArea.right - chart.chartArea.left) / 2;
+                            const centerY = chart.chartArea.top + (chart.chartArea.bottom - chart.chartArea.top) / 2;
+                            const radius = Math.min(chart.chartArea.right - chart.chartArea.left, chart.chartArea.bottom - chart.chartArea.top) / 2;
+                            const labelRadius = radius * 0.8; // 라벨을 표시할 반지름
+                            
+                            let currentAngle = -Math.PI / 2; // 12시 방향부터 시작
+                            
+                            data.forEach((value, index) => {
+                                if (value > 0) {
+                                    const percentage = ((value / total) * 100).toFixed(0);
+                                    const sliceAngle = (value / total) * 2 * Math.PI;
+                                    const labelAngle = currentAngle + sliceAngle / 2;
+                                    
+                                    // 퍼센트가 5% 이상일 때만 표시 (너무 작은 조각은 텍스트가 겹침)
+                                    if (percentage >= 5) {
+                                        const labelX = centerX + Math.cos(labelAngle) * labelRadius;
+                                        const labelY = centerY + Math.sin(labelAngle) * labelRadius;
+                                        
+                                        // 텍스트 배경 (가독성을 위해)
+                                        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+                                        ctx.fillRect(labelX - 15, labelY - 8, 30, 16);
+                                        
+                                        // 퍼센트 텍스트
+                                        ctx.fillStyle = '#2c3e50';
+                                        ctx.fillText(`${percentage}%`, labelX, labelY);
+                                    }
+                                    
+                                    currentAngle += sliceAngle;
+                                }
+                            });
+                            
+                            ctx.restore();
+                        }
+                    }
+                ]
+            });
+        }
+
+        // GLB 서비스용 기본 도넛 차트 (NBP/DR)
+        function createSimpleDonutChart(ctx, service) {
+            donutCharts[service.id] = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['NBP', 'DR'],
+                    datasets: [{
+                        data: [service.nbp, service.dr],
+                        backgroundColor: ['#3498db', '#e74c3c'],
+                        borderWidth: 2,
+                        borderColor: '#ffffff',
+                        cutout: '60%'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.label;
+                                    const value = context.parsed;
+                                    const sessions = label === 'NBP' ? service.nbpSessions : service.drSessions;
+                                    return `${label}: ${value}% (${sessions.toLocaleString()} 세션)`;
+                                }
+                            }
+                        }
+                    },
+                    animation: {
+                        animateRotate: true,
+                        duration: 1000
+                    }
+                },
+                plugins: [
+                    {
+                        id: 'doughnutLabel',
+                        afterDatasetsDraw: function(chart) {
+                            const ctx = chart.ctx;
+                            const data = chart.data.datasets[0].data;
+                            const labels = chart.data.labels;
+                            
+                            ctx.save();
+                            ctx.font = 'bold 12px Arial';
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'middle';
+                            
+                            const centerX = chart.chartArea.left + (chart.chartArea.right - chart.chartArea.left) / 2;
+                            const centerY = chart.chartArea.top + (chart.chartArea.bottom - chart.chartArea.top) / 2;
+                            const radius = Math.min(chart.chartArea.right - chart.chartArea.left, chart.chartArea.bottom - chart.chartArea.top) / 2;
+                            const labelRadius = radius * 0.75;
+                            
+                            let currentAngle = -Math.PI / 2; // 12시 방향부터 시작
+                            
+                            data.forEach((value, index) => {
+                                if (value > 0) {
+                                    const sliceAngle = (value / 100) * 2 * Math.PI;
+                                    const labelAngle = currentAngle + sliceAngle / 2;
+                                    
+                                    const labelX = centerX + Math.cos(labelAngle) * labelRadius;
+                                    const labelY = centerY + Math.sin(labelAngle) * labelRadius;
+                                    
+                                    // 텍스트 배경
+                                    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+                                    ctx.fillRect(labelX - 20, labelY - 10, 40, 20);
+                                    
+                                    // 퍼센트 텍스트
+                                    ctx.fillStyle = '#2c3e50';
+                                    ctx.fillText(`${value}%`, labelX, labelY);
+                                    
+                                    currentAngle += sliceAngle;
+                                }
+                            });
+                            
+                            ctx.restore();
+                        }
+                    }
+                ]
+            });
+        }
+
+        // 이력 그래프 초기화
+        function initializeHistoryCharts() {
+            // 서버별 트래픽 분산 차트
+            initializeServerDistributionChart();
+            
+            // 최근 10분 그래프 (Ring Buffer)
+            initialize10MinChart();
+            
+            // 24시간 이력 그래프
+            initialize24HChart();
+            
+            // 3개월 이력 그래프
+            initialize3MonthChart();
+        }
+
+        // 서버별 트래픽 분산 차트 (스택 바 차트)
+        function initializeServerDistributionChart() {
+            const ctx = document.getElementById('server-distribution-chart');
+            if (!ctx) return;
+
+            historyCharts['distribution'] = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['NBP-01', 'NBP-02', 'NBP-03', 'DR-01', 'DR-02', 'DR-03'],
+                    datasets: [
+                        {
+                            label: '현재 세션',
+                            data: [425, 410, 410, 105, 103, 103],
+                            backgroundColor: [
+                                'rgba(52, 152, 219, 0.8)',
+                                'rgba(41, 128, 185, 0.8)',
+                                'rgba(93, 173, 226, 0.8)',
+                                'rgba(231, 76, 60, 0.8)',
+                                'rgba(192, 57, 43, 0.8)',
+                                'rgba(236, 112, 99, 0.8)'
+                            ],
+                            borderColor: [
+                                '#3498db',
+                                '#2980b9',
+                                '#5dade2',
+                                '#e74c3c',
+                                '#c0392b',
+                                '#ec7063'
+                            ],
+                            borderWidth: 2
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: '세션 수'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: '서버'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const value = context.parsed.x;
+                                    const total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                                    const percentage = ((value / total) * 100).toFixed(1);
+                                    return `세션: ${value.toLocaleString()} (${percentage}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 최근 10분 그래프 (5초 간격, 120개 포인트) - 서버별 상세
+        function initialize10MinChart() {
+            const ctx = document.getElementById('chart-10min');
+            if (!ctx) return;
+
+            // 10분간 5초 간격 데이터 생성 (120개 포인트)
+            const labels = [];
+            const nbpTotalData = [];
+            const drTotalData = [];
+            const totalData = [];
+            
+            // 서버별 데이터
+            const nbp01Data = [];
+            const nbp02Data = [];
+            const nbp03Data = [];
+            const dr01Data = [];
+            const dr02Data = [];
+            const dr03Data = [];
+            
+            const now = new Date();
+            for (let i = 119; i >= 0; i--) {
+                const time = new Date(now.getTime() - i * 5000); // 5초씩 뒤로
+                labels.push(time.toLocaleTimeString('ko-KR', { 
+                    hour: '2-digit', 
+                    minute: '2-digit', 
+                    second: '2-digit' 
+                }));
+                
+                // NBP 서버별 시뮬레이션 (각각 다른 패턴)
+                const nbp01 = 400 + Math.sin(i * 0.1) * 50 + (Math.random() - 0.5) * 80;
+                const nbp02 = 380 + Math.cos(i * 0.12) * 40 + (Math.random() - 0.5) * 70;
+                const nbp03 = 390 + Math.sin(i * 0.08) * 45 + (Math.random() - 0.5) * 75;
+                
+                // DR 서버별 시뮬레이션
+                const dr01 = 100 + Math.sin(i * 0.15) * 20 + (Math.random() - 0.5) * 30;
+                const dr02 = 95 + Math.cos(i * 0.18) * 18 + (Math.random() - 0.5) * 25;
+                const dr03 = 98 + Math.sin(i * 0.13) * 22 + (Math.random() - 0.5) * 28;
+                
+                nbp01Data.push(Math.max(0, Math.round(nbp01)));
+                nbp02Data.push(Math.max(0, Math.round(nbp02)));
+                nbp03Data.push(Math.max(0, Math.round(nbp03)));
+                dr01Data.push(Math.max(0, Math.round(dr01)));
+                dr02Data.push(Math.max(0, Math.round(dr02)));
+                dr03Data.push(Math.max(0, Math.round(dr03)));
+                
+                const nbpTotal = nbp01 + nbp02 + nbp03;
+                const drTotal = dr01 + dr02 + dr03;
+                
+                nbpTotalData.push(Math.max(0, Math.round(nbpTotal)));
+                drTotalData.push(Math.max(0, Math.round(drTotal)));
+                totalData.push(Math.round(nbpTotal + drTotal));
+            }
+
+            historyCharts['10min'] = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        // NBP 서버별
+                        {
+                            label: 'NBP-01 (10.10.1.10)',
+                            data: nbp01Data,
+                            borderColor: '#3498db',
+                            backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                            fill: false,
+                            tension: 0.4,
+                            borderWidth: 2
+                        },
+                        {
+                            label: 'NBP-02 (10.10.1.11)',
+                            data: nbp02Data,
+                            borderColor: '#2980b9',
+                            backgroundColor: 'rgba(41, 128, 185, 0.1)',
+                            fill: false,
+                            tension: 0.4,
+                            borderWidth: 2
+                        },
+                        {
+                            label: 'NBP-03 (10.10.1.12)',
+                            data: nbp03Data,
+                            borderColor: '#5dade2',
+                            backgroundColor: 'rgba(93, 173, 226, 0.1)',
+                            fill: false,
+                            tension: 0.4,
+                            borderWidth: 2
+                        },
+                        // DR 서버별
+                        {
+                            label: 'DR-01 (10.20.1.10)',
+                            data: dr01Data,
+                            borderColor: '#e74c3c',
+                            backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                            fill: false,
+                            tension: 0.4,
+                            borderWidth: 2
+                        },
+                        {
+                            label: 'DR-02 (10.20.1.11)',
+                            data: dr02Data,
+                            borderColor: '#c0392b',
+                            backgroundColor: 'rgba(192, 57, 43, 0.1)',
+                            fill: false,
+                            tension: 0.4,
+                            borderWidth: 2
+                        },
+                        {
+                            label: 'DR-03 (10.20.1.12)',
+                            data: dr03Data,
+                            borderColor: '#ec7063',
+                            backgroundColor: 'rgba(236, 112, 99, 0.1)',
+                            fill: false,
+                            tension: 0.4,
+                            borderWidth: 2
+                        },
+                        // 총합 라인
+                        {
+                            label: '총 세션',
+                            data: totalData,
+                            borderColor: '#27ae60',
+                            backgroundColor: 'rgba(39, 174, 96, 0.1)',
+                            fill: false,
+                            tension: 0.4,
+                            borderDash: [5, 5],
+                            borderWidth: 3
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            display: true,
+                            title: {
+                                display: true,
+                                text: '시간 (5초 간격)'
+                            },
+                            ticks: {
+                                maxTicksLimit: 10
+                            }
+                        },
+                        y: {
+                            display: true,
+                            title: {
+                                display: true,
+                                text: '세션 수'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: {
+                                usePointStyle: true,
+                                padding: 15
+                            }
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                title: function(context) {
+                                    return '시간: ' + context[0].label;
+                                },
+                                label: function(context) {
+                                    return context.dataset.label + ': ' + context.parsed.y.toLocaleString() + ' 세션';
+                                }
+                            }
+                        }
+                    },
+                    interaction: {
+                        mode: 'nearest',
+                        axis: 'x',
+                        intersect: false
+                    }
+                }
+            });
+        }
+
+        // 24시간 이력 그래프 (5분 간격, 288개 포인트)
+        function initialize24HChart() {
+            const ctx = document.getElementById('chart-24h');
+            if (!ctx) return;
+
+            // 24시간간 5분 간격 데이터 생성 (288개 포인트)
+            const labels = [];
+            const nbpData = [];
+            const drData = [];
+            const nbpRatioData = [];
+            
+            const now = new Date();
+            for (let i = 287; i >= 0; i--) {
+                const time = new Date(now.getTime() - i * 5 * 60000); // 5분씩 뒤로
+                labels.push(time.toLocaleString('ko-KR', { 
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit', 
+                    minute: '2-digit'
+                }));
+                
+                // 시뮬레이션 데이터 (일일 패턴 + 노이즈)
+                const hourOfDay = time.getHours();
+                const baseLoad = 800 + Math.sin((hourOfDay - 6) * Math.PI / 12) * 400; // 오전 6시 최저, 오후 6시 최고
+                
+                const nbpSessions = baseLoad * 0.8 + (Math.random() - 0.5) * 200;
+                const drSessions = baseLoad * 0.2 + (Math.random() - 0.5) * 100;
+                const total = nbpSessions + drSessions;
+                
+                nbpData.push(Math.max(0, Math.round(nbpSessions)));
+                drData.push(Math.max(0, Math.round(drSessions)));
+                nbpRatioData.push(Math.round((nbpSessions / total) * 100));
+            }
+
+            historyCharts['24h'] = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'NBP 세션',
+                            data: nbpData,
+                            borderColor: '#3498db',
+                            backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                            yAxisID: 'y',
+                            fill: false,
+                            tension: 0.3
+                        },
+                        {
+                            label: 'DR 세션',
+                            data: drData,
+                            borderColor: '#e74c3c',
+                            backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                            yAxisID: 'y',
+                            fill: false,
+                            tension: 0.3
+                        },
+                        {
+                            label: 'NBP 비율 (%)',
+                            data: nbpRatioData,
+                            borderColor: '#f39c12',
+                            backgroundColor: 'rgba(243, 156, 18, 0.1)',
+                            yAxisID: 'y1',
+                            fill: false,
+                            tension: 0.3,
+                            borderDash: [3, 3]
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            display: true,
+                            title: {
+                                display: true,
+                                text: '시간 (5분 간격)'
+                            },
+                            ticks: {
+                                maxTicksLimit: 12
+                            }
+                        },
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            title: {
+                                display: true,
+                                text: '세션 수'
+                            }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            title: {
+                                display: true,
+                                text: 'NBP 비율 (%)'
+                            },
+                            min: 0,
+                            max: 100,
+                            grid: {
+                                drawOnChartArea: false
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        }
+                    }
+                }
+            });
+        }
+
+        // 3개월 이력 그래프 (일별 집계, 90개 포인트)
+        function initialize3MonthChart() {
+            const ctx = document.getElementById('chart-3month');
+            if (!ctx) return;
+
+            // 3개월간 일별 데이터 생성 (90개 포인트)
+            const labels = [];
+            const avgNbpData = [];
+            const avgDrData = [];
+            const maxTotalData = [];
+            const minTotalData = [];
+            
+            const now = new Date();
+            for (let i = 89; i >= 0; i--) {
+                const date = new Date(now.getTime() - i * 24 * 60 * 60000); // 1일씩 뒤로
+                labels.push(date.toLocaleDateString('ko-KR', { 
+                    month: '2-digit',
+                    day: '2-digit'
+                }));
+                
+                // 시뮬레이션 데이터 (주간/주말 패턴)
+                const dayOfWeek = date.getDay();
+                const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+                const baseLoad = isWeekend ? 600 : 1000;
+                
+                // 월별 트렌드 추가
+                const monthTrend = Math.sin((90 - i) * Math.PI / 45) * 200;
+                
+                const avgNbp = baseLoad * 0.75 + monthTrend + (Math.random() - 0.5) * 100;
+                const avgDr = baseLoad * 0.25 + (Math.random() - 0.5) * 50;
+                const maxTotal = (avgNbp + avgDr) * 1.3;
+                const minTotal = (avgNbp + avgDr) * 0.7;
+                
+                avgNbpData.push(Math.max(0, Math.round(avgNbp)));
+                avgDrData.push(Math.max(0, Math.round(avgDr)));
+                maxTotalData.push(Math.round(maxTotal));
+                minTotalData.push(Math.round(minTotal));
+            }
+
+            historyCharts['3month'] = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: '평균 NBP 세션',
+                            data: avgNbpData,
+                            borderColor: '#3498db',
+                            backgroundColor: 'rgba(52, 152, 219, 0.2)',
+                            fill: false,
+                            tension: 0.2
+                        },
+                        {
+                            label: '평균 DR 세션',
+                            data: avgDrData,
+                            borderColor: '#e74c3c',
+                            backgroundColor: 'rgba(231, 76, 60, 0.2)',
+                            fill: false,
+                            tension: 0.2
+                        },
+                        {
+                            label: '최대 총 세션',
+                            data: maxTotalData,
+                            borderColor: '#27ae60',
+                            backgroundColor: 'rgba(39, 174, 96, 0.1)',
+                            fill: '+1',
+                            tension: 0.2,
+                            borderDash: [2, 2]
+                        },
+                        {
+                            label: '최소 총 세션',
+                            data: minTotalData,
+                            borderColor: '#95a5a6',
+                            backgroundColor: 'rgba(149, 165, 166, 0.1)',
+                            fill: false,
+                            tension: 0.2,
+                            borderDash: [2, 2]
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            display: true,
+                            title: {
+                                display: true,
+                                text: '날짜 (일별 집계)'
+                            },
+                            ticks: {
+                                maxTicksLimit: 15
+                            }
+                        },
+                        y: {
+                            display: true,
+                            title: {
+                                display: true,
+                                text: '세션 수'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false
+                        }
+                    },
+                    interaction: {
+                        mode: 'nearest',
+                        axis: 'x',
+                        intersect: false
+                    }
+                }
+            });
+        }
+
+        // 검색 및 필터 기능 초기화
+        function initializeSearchAndFilter() {
+            const searchInput = document.getElementById('searchInput');
+            const filterButtons = document.querySelectorAll('.filter-btn');
+            const serviceCards = document.querySelectorAll('.service-card');
+            const noResults = document.getElementById('no-results');
+
+            // 검색 입력 이벤트
+            searchInput.addEventListener('input', function() {
+                filterServices();
+            });
+
+            // 필터 버튼 이벤트
+            filterButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    // 활성 버튼 변경
+                    filterButtons.forEach(btn => btn.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    filterServices();
+                });
+            });
+
+            function filterServices() {
+                const searchTerm = searchInput.value.toLowerCase();
+                const activeFilter = document.querySelector('.filter-btn.active').dataset.filter;
+                let visibleCount = 0;
+
+                serviceCards.forEach(card => {
+                    const serviceName = card.querySelector('h3').textContent.toLowerCase();
+                    const serviceType = card.dataset.type;
+                    const serviceStatus = card.dataset.status;
+                    const vipInfo = card.querySelector('p').textContent.toLowerCase();
+
+                    // 검색어 매칭
+                    const matchesSearch = serviceName.includes(searchTerm) || 
+                                        vipInfo.includes(searchTerm);
+
+                    // 필터 매칭
+                    let matchesFilter = true;
+                    if (activeFilter !== 'all') {
+                        if (activeFilter === 'L4' || activeFilter === 'GLB') {
+                            matchesFilter = serviceType === activeFilter;
+                        } else {
+                            matchesFilter = serviceStatus === activeFilter;
+                        }
+                    }
+
+                    // 표시/숨김 결정
+                    if (matchesSearch && matchesFilter) {
+                        card.classList.remove('hidden');
+                        visibleCount++;
+                    } else {
+                        card.classList.add('hidden');
+                    }
+                });
+
+                // 검색 결과 없음 메시지 표시
+                if (visibleCount === 0) {
+                    noResults.style.display = 'block';
+                } else {
+                    noResults.style.display = 'none';
+                }
+            }
+        }
+
+        // 실시간 데이터 업데이트
+        function updateRealTimeData() {
+            const now = new Date();
+            document.getElementById('last-update').textContent = 
+                '마지막 업데이트: ' + now.toLocaleString('ko-KR');
+            
+            // 도넛 차트 데이터 업데이트 (서비스 타입별로 다르게 처리)
+            Object.keys(donutCharts).forEach(serviceId => {
+                const chart = donutCharts[serviceId];
+                const serviceCard = document.querySelector(`[data-service-id="${serviceId}"]`);
+                const serviceType = serviceCard ? serviceCard.dataset.type : 'GLB';
+                
+                if (serviceType === 'L4') {
+                    // L4 서비스: 서버별 데이터 업데이트
+                    updateL4DonutChart(chart, serviceId);
+                } else {
+                    // GLB 서비스: 기본 NBP/DR 업데이트
+                    updateGLBDonutChart(chart, serviceId);
+                }
+            });
+            
+            // 10분 그래프 실시간 업데이트 (새 데이터 포인트 추가)
+            if (historyCharts['10min']) {
+                const chart = historyCharts['10min'];
+                const now = new Date();
+                
+                // 새 데이터 포인트 추가
+                chart.data.labels.push(now.toLocaleTimeString('ko-KR', { 
+                    hour: '2-digit', 
+                    minute: '2-digit', 
+                    second: '2-digit' 
+                }));
+                
+                // 서버별 새 세션 데이터 생성 (각각 다른 패턴)
+                const nbp01 = 400 + (Math.random() - 0.5) * 80;
+                const nbp02 = 380 + (Math.random() - 0.5) * 70;
+                const nbp03 = 390 + (Math.random() - 0.5) * 75;
+                const dr01 = 100 + (Math.random() - 0.5) * 30;
+                const dr02 = 95 + (Math.random() - 0.5) * 25;
+                const dr03 = 98 + (Math.random() - 0.5) * 28;
+                
+                const serverData = [
+                    Math.max(0, Math.round(nbp01)),
+                    Math.max(0, Math.round(nbp02)),
+                    Math.max(0, Math.round(nbp03)),
+                    Math.max(0, Math.round(dr01)),
+                    Math.max(0, Math.round(dr02)),
+                    Math.max(0, Math.round(dr03))
+                ];
+                
+                // 각 데이터셋에 새 값 추가
+                chart.data.datasets.forEach((dataset, index) => {
+                    if (index < 6) { // 서버별 데이터
+                        dataset.data.push(serverData[index]);
+                    } else { // 총합 데이터
+                        const total = serverData.reduce((a, b) => a + b, 0);
+                        dataset.data.push(total);
+                    }
+                });
+                
+                // 120개 포인트 유지 (Ring Buffer)
+                if (chart.data.labels.length > 120) {
+                    chart.data.labels.shift();
+                    chart.data.datasets.forEach(dataset => {
+                        dataset.data.shift();
+                    });
+                }
+                
+                chart.update('none');
+                
+                // 서버별 상세 현황 업데이트
+                updateServerDetails(serverData);
+            }
+            
+            // 서버별 트래픽 분산 차트 업데이트
+            if (historyCharts['distribution']) {
+                const chart = historyCharts['distribution'];
+                const currentData = chart.data.datasets[0].data;
+                
+                // 각 서버별로 ±10 범위에서 랜덤 변화
+                const newData = currentData.map(value => {
+                    const variation = Math.floor(Math.random() * 21) - 10; // -10 ~ +10
+                    return Math.max(0, value + variation);
+                });
+                
+                chart.data.datasets[0].data = newData;
+                chart.update('none');
+            }
+            
+            // 메트릭 값들도 랜덤하게 변경 (데모용)
+            const metricValues = document.querySelectorAll('.metric-value');
+            metricValues.forEach(value => {
+                if (value.textContent.includes('%')) return; // 비율은 제외
+                
+                const currentValue = parseInt(value.textContent.replace(/,/g, ''));
+                if (!isNaN(currentValue) && currentValue > 100) { // 세션 수만 변경
+                    const variation = Math.floor(Math.random() * 20) - 10; // -10 ~ +10
+                    const newValue = Math.max(0, currentValue + variation);
+                    value.textContent = newValue.toLocaleString();
+                }
+            });
+        }
+    </script>
+    
+    <script>
+        // 서버별 상세 현황 업데이트 함수
+        function updateServerDetails(serverData) {
+            const serverIds = ['nbp-01', 'nbp-02', 'nbp-03', 'dr-01', 'dr-02', 'dr-03'];
+            
+            // NBP 총합과 DR 총합 계산
+            const nbpTotal = serverData[0] + serverData[1] + serverData[2];
+            const drTotal = serverData[3] + serverData[4] + serverData[5];
+            
+            serverData.forEach((sessions, index) => {
+                const sessionElement = document.getElementById(`${serverIds[index]}-sessions`);
+                if (sessionElement) {
+                    sessionElement.textContent = sessions.toLocaleString();
+                }
+                
+                // 해당 서버가 속한 그룹 내에서의 비율 계산
+                let groupTotal, percentage;
+                if (index < 3) { // NBP 서버
+                    groupTotal = nbpTotal;
+                } else { // DR 서버
+                    groupTotal = drTotal;
+                }
+                
+                percentage = groupTotal > 0 ? ((sessions / groupTotal) * 100).toFixed(1) : 0;
+                
+                // 비율 업데이트
+                const serverItem = sessionElement.closest('.server-item');
+                if (serverItem) {
+                    const ratioElements = serverItem.querySelectorAll('.metric-value');
+                    if (ratioElements.length > 1) {
+                        ratioElements[1].textContent = percentage + '%';
+                    }
+                    
+                    // 프로그레스 바 업데이트
+                    const barFill = serverItem.querySelector('.bar-fill');
+                    if (barFill) {
+                        barFill.style.width = percentage + '%';
+                    }
+                }
+            });
+        }
+    </script>
+    
+    <script>
+        // L4 서비스 도넛 차트 업데이트
+        function updateL4DonutChart(chart, serviceId) {
+            const currentData = chart.data.datasets[0].data;
+            const newData = currentData.map(value => {
+                const variation = Math.floor(Math.random() * 21) - 10; // -10 ~ +10
+                return Math.max(0, value + variation);
+            });
+            
+            chart.data.datasets[0].data = newData;
+            chart.update('none');
+            
+            // 범례 업데이트
+            updateL4Legend(serviceId, newData, chart.data.labels);
+        }
+        
+        // GLB 서비스 도넛 차트 업데이트
+        function updateGLBDonutChart(chart, serviceId) {
+            const currentNbp = chart.data.datasets[0].data[0];
+            
+            // ±5% 범위에서 랜덤 변화
+            const variation = (Math.random() - 0.5) * 10;
+            let newNbp = Math.max(10, Math.min(90, currentNbp + variation));
+            let newDr = 100 - newNbp;
+            
+            // 차트 데이터 업데이트
+            chart.data.datasets[0].data = [Math.round(newNbp), Math.round(newDr)];
+            chart.update('none');
+            
+            // 범례 텍스트 업데이트
+            const card = document.querySelector(`[data-service-id="${serviceId}"]`);
+            if (card) {
+                const chartInfo = card.querySelector('.chart-info p strong');
+                if (chartInfo) {
+                    chartInfo.textContent = `NBP: ${Math.round(newNbp)}% | DR: ${Math.round(newDr)}%`;
+                }
+            }
+        }
+        
+        // L4 서비스 범례 업데이트
+        function updateL4Legend(serviceId, serverData, labels) {
+            const card = document.querySelector(`[data-service-id="${serviceId}"]`);
+            if (!card) return;
+            
+            const legendItems = card.querySelectorAll('.legend-item span');
+            const total = serverData.reduce((a, b) => a + b, 0);
+            
+            // NBP/DR 총합 계산
+            let nbpTotal = 0, drTotal = 0;
+            serverData.forEach((sessions, index) => {
+                if (labels[index].startsWith('NBP')) {
+                    nbpTotal += sessions;
+                } else {
+                    drTotal += sessions;
+                }
+            });
+            
+            // 각 서버별 범례 업데이트
+            legendItems.forEach((item, index) => {
+                if (index < serverData.length) {
+                    const serverName = labels[index];
+                    const sessions = serverData[index];
+                    item.textContent = `${serverName} (${sessions.toLocaleString()})`;
+                }
+            });
+            
+            // 상단 비율 텍스트 업데이트
+            const chartInfo = card.querySelector('.chart-info p strong');
+            if (chartInfo && total > 0) {
+                const nbpPercent = Math.round((nbpTotal / total) * 100);
+                const drPercent = Math.round((drTotal / total) * 100);
+                chartInfo.textContent = `NBP: ${nbpPercent}% | DR: ${drPercent}%`;
+            }
+            
+            // 총 세션 수 업데이트
+            const totalSessionsText = card.querySelector('.chart-info p:nth-child(2)');
+            if (totalSessionsText) {
+                totalSessionsText.textContent = `총 ${total.toLocaleString()} 세션`;
+            }
+        }
+    </script>
+</body>
+</html>

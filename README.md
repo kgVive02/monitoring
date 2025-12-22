@@ -27,6 +27,7 @@ mvn spring-boot:run
 
 ## 접속 정보
 - 웹 대시보드: http://localhost:8080
+- 데모 페이지: http://localhost:8080/demo.html (실제 데이터 없이 미리보기 가능)
 - 헬스체크: http://localhost:8080/actuator/health
 
 ## 설정 파일

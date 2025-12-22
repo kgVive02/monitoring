@@ -60,9 +60,9 @@
 - [x] Java 1.7 호환성 확인 및 설정
 
 ### Task 1.2: 설정 파일 구조 설계
-- [ ] system.properties 파일 구조 정의
-- [ ] 서비스 설정 정보 모델 클래스 설계
-- [ ] 설정 파일 변경 감지 메커니즘 설계
+- [x] system.properties 파일 구조 정의
+- [x] 서비스 설정 정보 모델 클래스 설계
+- [x] 설정 파일 변경 감지 메커니즘 설계
 
 ### Task 1.3: SNMP 연동 구조 설계
 - [ ] SNMP 라이브러리 선택 및 의존성 추가
@@ -227,7 +227,7 @@
 
 ### 현재 진행 단계
 - **현재 Phase**: Phase 1 (프로젝트 초기 설정 및 구조 설계)
-- **현재 Task**: Task 1.1 완료, Task 1.2 대기 중
+- **현재 Task**: Task 1.2 완료, Task 1.3 대기 중
 - **마지막 업데이트**: 2024-12-22
 
 ### 완료된 작업
@@ -236,9 +236,16 @@
 - [x] Task 1.1: 프로젝트 구조 설계 완료
   - Spring Boot 1.5.22 + Java 1.7 기반 프로젝트 구조 생성
   - Maven 의존성 정의 (SNMP4J, Spring Boot, Commons 등)
-  - 패키지 구조 설계 및 기본 클래스 생성
+  - 패키지 구조 설계 및 기본 클래스 생성 (com.kgm.monitoring)
   - 웹 대시보드 기본 구조 (HTML, CSS, JS) 생성
   - 설정 파일 및 테스트 구조 생성
+- [x] Task 1.2: 설정 파일 구조 설계 완료
+  - system.properties 파일 상세 구조 정의 (서비스별 NBP/DR 서버 설정)
+  - ServiceInfo 모델 클래스 완전 구현 (ServerInfo, SnmpConfig 내부 클래스 포함)
+  - SystemPropertiesConfig 설정 관리 클래스 구현 (파일 변경 감지, 자동 리로드)
+  - ConfigValidator 설정 검증 유틸리티 구현
+  - ConfigService 설정 관리 서비스 구현
+  - 단위 테스트 클래스 생성
 
 ### 다음 진행 예정 작업
 - 지시가 있을 때까지 대기
