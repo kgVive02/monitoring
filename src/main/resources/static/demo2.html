@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KG 모빌리언스 - NBP/DR 계기판 모니터링</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
+            background: #1a1a1a;
+            color: #ffffff;
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        /* 헤더 */
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            padding: 20px 40px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .title-section h1 {
+            font-size: 28px;
+            font-weight: 300;
+            margin-bottom: 5px;
+        }
+
+        .title-section p {
+            font-size: 14px;
+            opacity: 0.8;
+        }
+
+        .status-info {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .status-item {
+            text-align: center;
+        }
+
+        .status-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #3498db;
+        }
+
+        .status-label {
+            font-size: 12px;
+            opacity: 0.8;
+            margin-top: 2px;
+        }
+
+        /* 메인 컨테이너 */
+        .main-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 30px 20px;
+        }
+
+        /* 검색 및 필터 섹션 */
+        .search-section {
+            background: linear-gradient(145deg, #34495e, #2c3e50);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+        }
+
+        .search-container {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .search-input {
+            flex: 1;
+            min-width: 250px;
+            padding: 12px 20px;
+            background: rgba(52, 73, 94, 0.5);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 25px;
+            color: #ffffff;
+            font-size: 14px;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        .search-input:focus {
+            border-color: #3498db;
+            box-shadow: 0 0 15px rgba(52, 152, 219, 0.3);
+        }
+
+        .search-input::placeholder {
+            color: #95a5a6;
+        }
+
+        .filter-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            padding: 8px 16px;
+            background: rgba(52, 73, 94, 0.5);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 20px;
+            color: #ecf0f1;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            outline: none;
+        }
+
+        .filter-btn:hover {
+            background: rgba(52, 152, 219, 0.3);
+            border-color: #3498db;
+        }
+
+        .filter-btn.active {
+            background: #3498db;
+            border-color: #3498db;
+            color: #ffffff;
+        }
+
+        .search-results {
+            margin-top: 15px;
+            font-size: 14px;
+            color: #95a5a6;
+        }
+        /* 계기판 그리드 */
+        .gauge-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            margin-bottom: 40px;
+        }
+
+        .gauge-card {
+            background: linear-gradient(145deg, #2c3e50, #34495e);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .gauge-card.hidden {
+            display: none;
+        }
+
+        .gauge-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 35px rgba(0,0,0,0.4);
+        }
+
+        .gauge-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #3498db, #2ecc71);
+        }
+
+        .gauge-header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .service-name {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #ecf0f1;
+        }
+
+        .service-type {
+            font-size: 12px;
+            color: #95a5a6;
+            background: rgba(52, 73, 94, 0.5);
+            padding: 4px 12px;
+            border-radius: 12px;
+            display: inline-block;
+        }
+
+        .gauge-container {
+            position: relative;
+            width: 200px;
+            height: 200px;
+            margin: 0 auto 20px;
+        }
+
+        .gauge-canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        .gauge-center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+        }
+
+        .gauge-values {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .gauge-ratio {
+            font-size: 16px;
+            font-weight: bold;
+            line-height: 1;
+        }
+
+        .nbp-ratio {
+            color: #3498db;
+        }
+
+        .dr-ratio {
+            color: #e74c3c;
+        }
+
+        .gauge-label {
+            font-size: 11px;
+            color: #95a5a6;
+            margin-top: 5px;
+        }
+
+        .server-details {
+            margin-top: 20px;
+        }
+
+        .server-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .server-row:last-child {
+            border-bottom: none;
+        }
+
+        .server-name {
+            font-size: 14px;
+            color: #ecf0f1;
+        }
+
+        .server-value {
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .nbp-server {
+            color: #3498db;
+        }
+
+        .dr-server {
+            color: #e74c3c;
+        }
+
+        /* 상태 인디케이터 */
+        .status-indicator {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            box-shadow: 0 0 10px rgba(0,0,0,0.3);
+        }
+
+        .status-normal {
+            background: #2ecc71;
+            box-shadow: 0 0 15px rgba(46, 204, 113, 0.5);
+        }
+
+        .status-warning {
+            background: #f39c12;
+            box-shadow: 0 0 15px rgba(243, 156, 18, 0.5);
+        }
+
+        .status-error {
+            background: #e74c3c;
+            box-shadow: 0 0 15px rgba(231, 76, 60, 0.5);
+        }
+
+        /* 업데이트 정보 */
+        .update-bar {
+            background: #2c3e50;
+            padding: 15px;
+            text-align: center;
+            font-size: 14px;
+            color: #95a5a6;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .update-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background: #2ecc71;
+            border-radius: 50%;
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        /* 반응형 */
+        @media (max-width: 768px) {
+            .header {
+                padding: 15px 20px;
+            }
+
+            .header-content {
+                flex-direction: column;
+                gap: 15px;
+                text-align: center;
+            }
+
+            .status-info {
+                gap: 15px;
+                justify-content: center;
+            }
+
+            .search-container {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .search-input {
+                min-width: auto;
+            }
+
+            .filter-buttons {
+                justify-content: center;
+            }
+
+            .gauge-grid {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+
+            .gauge-container {
+                width: 180px;
+                height: 180px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 헤더 -->
+    <header class="header">
+        <div class="header-content">
+            <div class="title-section">
+                <h1>Mobilians 서비스 모니터링</h1>
+                <p>KG MOBILIANS MONITORING SERVICES</p>
+            </div>
+            <div class="status-info">
+                <div class="status-item">
+                    <div class="status-value" id="totalServices">5</div>
+                    <div class="status-label">서비스</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-value" style="color: #2ecc71;" id="normalServices">2</div>
+                    <div class="status-label">정상</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-value" style="color: #f39c12;" id="warningServices">3</div>
+                    <div class="status-label">전환중</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-value" style="color: #e74c3c;" id="errorServices">0</div>
+                    <div class="status-label">오류</div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- 메인 컨테이너 -->
+    <main class="main-container">
+        <!-- 검색 및 필터 섹션 -->
+        <section class="search-section">
+            <div class="search-container">
+                <input type="text" class="search-input" id="searchInput" placeholder="서비스명 또는 IP 주소로 검색...">
+                <div class="filter-buttons">
+                    <button class="filter-btn active" data-filter="all">전체</button>
+                    <button class="filter-btn" data-filter="L4">L4</button>
+                    <button class="filter-btn" data-filter="GLB">GLB</button>
+                    <button class="filter-btn" data-filter="normal">정상</button>
+                    <button class="filter-btn" data-filter="warning">전환중</button>
+                    <button class="filter-btn" data-filter="error">오류</button>
+                </div>
+            </div>
+            <div class="search-results" id="searchResults">
+                전체 5개 서비스 표시 중
+            </div>
+        </section>
+
+        <!-- 계기판 그리드 -->
+        <div class="gauge-grid" id="gaugeGrid">
+            <!-- 계기판들이 여기에 동적으로 생성됩니다 -->
+        </div>
+    </main>
+
+    <!-- 업데이트 정보 -->
+    <div class="update-bar">
+        <span class="update-indicator"></span>
+        시스템 정상 운영 중 | 마지막 업데이트: <span id="lastUpdate"></span> | 자동 갱신: 3초마다
+    </div>
+
+    <script>
+        // 샘플 데이터
+        let servicesData = [
+            {
+                name: '웹 서비스',
+                type: 'L4',
+                vip: '10.10.1.100:80',
+                status: 'normal',
+                nbpRatio: 87,
+                drRatio: 13,
+                servers: {
+                    nbp: [
+                        { name: 'NBP-01', ratio: 32, sessions: 435 },
+                        { name: 'NBP-02', ratio: 30, sessions: 410 },
+                        { name: 'NBP-03', ratio: 25, sessions: 340 }
+                    ],
+                    dr: [
+                        { name: 'DR-01', ratio: 8, sessions: 110 },
+                        { name: 'DR-02', ratio: 5, sessions: 70 }
+                    ]
+                },
+                totalSessions: 1365
+            },
+            {
+                name: 'API 서비스',
+                type: 'GLB',
+                vip: '10.10.2.100:8080',
+                status: 'normal',
+                nbpRatio: 100,
+                drRatio: 0,
+                servers: {
+                    nbp: [
+                        { name: 'NBP-01', ratio: 52, sessions: 445 },
+                        { name: 'NBP-02', ratio: 48, sessions: 411 }
+                    ],
+                    dr: [
+                        { name: 'DR-01', ratio: 0, sessions: 0 },
+                        { name: 'DR-02', ratio: 0, sessions: 0 }
+                    ]
+                },
+                totalSessions: 856
+            },
+            {
+                name: 'DB 서비스',
+                type: 'L4',
+                vip: '10.10.3.100:3306',
+                status: 'warning',
+                nbpRatio: 65,
+                drRatio: 35,
+                servers: {
+                    nbp: [
+                        { name: 'NBP-01', ratio: 38, sessions: 164 },
+                        { name: 'NBP-02', ratio: 27, sessions: 117 }
+                    ],
+                    dr: [
+                        { name: 'DR-01', ratio: 22, sessions: 95 },
+                        { name: 'DR-02', ratio: 13, sessions: 56 }
+                    ]
+                },
+                totalSessions: 432
+            },
+            {
+                name: 'Cache 서비스',
+                type: 'L4',
+                vip: '10.10.4.100:6379',
+                status: 'error',
+                nbpRatio: 0,
+                drRatio: 100,
+                servers: {
+                    nbp: [
+                        { name: 'NBP-01', ratio: 0, sessions: 0 }
+                    ],
+                    dr: [
+                        { name: 'DR-01', ratio: 100, sessions: 234 }
+                    ]
+                },
+                totalSessions: 234
+            },
+            {
+                name: 'File 서비스',
+                type: 'GLB',
+                vip: '10.10.5.100:21',
+                status: 'warning',
+                nbpRatio: 75,
+                drRatio: 25,
+                servers: {
+                    nbp: [
+                        { name: 'NBP-01', ratio: 42, sessions: 52 },
+                        { name: 'NBP-02', ratio: 33, sessions: 40 }
+                    ],
+                    dr: [
+                        { name: 'DR-01', ratio: 15, sessions: 18 },
+                        { name: 'DR-02', ratio: 10, sessions: 13 }
+                    ]
+                },
+                totalSessions: 123
+            }
+        ];
+
+        // 계기판 그리기 함수
+        function drawGauge(canvas, nbpValue, drValue, maxValue = 100) {
+            const ctx = canvas.getContext('2d');
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const radius = Math.min(centerX, centerY) - 20;
+            
+            // 캔버스 클리어
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // 배경 호 그리기
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius, Math.PI, 2 * Math.PI);
+            ctx.lineWidth = 20;
+            ctx.strokeStyle = '#34495e';
+            ctx.stroke();
+            
+            // NBP 호 그리기
+            if (nbpValue > 0) {
+                const nbpAngle = Math.PI + (nbpValue / maxValue) * Math.PI;
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, radius, Math.PI, nbpAngle);
+                ctx.lineWidth = 20;
+                ctx.strokeStyle = '#3498db';
+                ctx.lineCap = 'round';
+                ctx.stroke();
+            }
+            
+            // DR 호 그리기
+            if (drValue > 0) {
+                const nbpAngle = Math.PI + (nbpValue / maxValue) * Math.PI;
+                const drAngle = nbpAngle + (drValue / maxValue) * Math.PI;
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, radius, nbpAngle, drAngle);
+                ctx.lineWidth = 20;
+                ctx.strokeStyle = '#e74c3c';
+                ctx.lineCap = 'round';
+                ctx.stroke();
+            }
+        }
+
+        // 계기판 카드 생성
+        function createGaugeCard(service) {
+            const card = document.createElement('div');
+            card.className = 'gauge-card';
+            card.dataset.serviceName = service.name.toLowerCase();
+            card.dataset.serviceType = service.type;
+            card.dataset.serviceStatus = service.status;
+            card.dataset.serviceVip = service.vip;
+            
+            // NBP 비율 계기판
+            const nbpRatio = service.nbpRatio;
+            
+            let serverDetailsHtml = '';
+            
+            // NBP 서버 상세
+            if (service.servers.nbp.some(server => server.ratio > 0)) {
+                service.servers.nbp.forEach(server => {
+                    if (server.ratio > 0) {
+                        serverDetailsHtml += `
+                            <div class="server-row">
+                                <span class="server-name">${server.name}</span>
+                                <span class="server-value nbp-server">${server.ratio}% (${server.sessions.toLocaleString()})</span>
+                            </div>
+                        `;
+                    }
+                });
+            }
+            
+            // DR 서버 상세
+            if (service.servers.dr.some(server => server.ratio > 0)) {
+                service.servers.dr.forEach(server => {
+                    if (server.ratio > 0) {
+                        serverDetailsHtml += `
+                            <div class="server-row">
+                                <span class="server-name">${server.name}</span>
+                                <span class="server-value dr-server">${server.ratio}% (${server.sessions.toLocaleString()})</span>
+                            </div>
+                        `;
+                    }
+                });
+            }
+            
+            card.innerHTML = `
+                <div class="status-indicator status-${service.status}"></div>
+                <div class="gauge-header">
+                    <div class="service-name">${service.name}</div>
+                    <div class="service-type">${service.type} | ${service.vip}</div>
+                </div>
+                <div class="gauge-container">
+                    <canvas class="gauge-canvas" width="200" height="200"></canvas>
+                    <div class="gauge-center">
+                        <div class="gauge-values">
+                            <div class="gauge-ratio nbp-ratio">NBP ${service.nbpRatio}%</div>
+                            <div class="gauge-ratio dr-ratio">DR ${service.drRatio}%</div>
+                        </div>
+                        <div class="gauge-label">트래픽 비율</div>
+                    </div>
+                </div>
+                <div class="server-details">
+                    ${serverDetailsHtml}
+                </div>
+            `;
+            
+            return card;
+        }
+
+        // 검색 및 필터 기능
+        function filterServices() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const activeFilter = document.querySelector('.filter-btn.active').dataset.filter;
+            const cards = document.querySelectorAll('.gauge-card');
+            let visibleCount = 0;
+            
+            cards.forEach(card => {
+                const serviceName = card.dataset.serviceName;
+                const serviceType = card.dataset.serviceType;
+                const serviceStatus = card.dataset.serviceStatus;
+                const serviceVip = card.dataset.serviceVip;
+                
+                // 검색어 필터링
+                const matchesSearch = searchTerm === '' || 
+                    serviceName.includes(searchTerm) || 
+                    serviceVip.includes(searchTerm);
+                
+                // 타입/상태 필터링
+                let matchesFilter = true;
+                if (activeFilter !== 'all') {
+                    if (activeFilter === 'L4' || activeFilter === 'GLB') {
+                        matchesFilter = serviceType === activeFilter;
+                    } else {
+                        matchesFilter = serviceStatus === activeFilter;
+                    }
+                }
+                
+                // 카드 표시/숨김
+                if (matchesSearch && matchesFilter) {
+                    card.classList.remove('hidden');
+                    visibleCount++;
+                } else {
+                    card.classList.add('hidden');
+                }
+            });
+            
+            // 검색 결과 업데이트
+            const totalCount = servicesData.length;
+            const resultsText = visibleCount === totalCount 
+                ? `전체 ${totalCount}개 서비스 표시 중`
+                : `${totalCount}개 중 ${visibleCount}개 서비스 표시 중`;
+            
+            document.getElementById('searchResults').textContent = resultsText;
+        }
+
+        // 검색 이벤트 리스너
+        function setupSearchListeners() {
+            // 검색 입력
+            document.getElementById('searchInput').addEventListener('input', filterServices);
+            
+            // 필터 버튼
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    // 활성 버튼 변경
+                    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    // 필터 적용
+                    filterServices();
+                });
+            });
+        }
+        // 계기판 렌더링
+        function renderGauges() {
+            const container = document.getElementById('gaugeGrid');
+            container.innerHTML = '';
+            
+            servicesData.forEach(service => {
+                const card = createGaugeCard(service);
+                container.appendChild(card);
+                
+                // 계기판 그리기
+                const canvas = card.querySelector('.gauge-canvas');
+                drawGauge(canvas, service.nbpRatio, service.drRatio);
+            });
+            
+            // 검색 결과 업데이트
+            filterServices();
+        }
+
+        // 헤더 통계 업데이트
+        function updateHeaderStats() {
+            const totalServices = servicesData.length;
+            const normalServices = servicesData.filter(service => service.status === 'normal').length;
+            const warningServices = servicesData.filter(service => service.status === 'warning').length;
+            const errorServices = servicesData.filter(service => service.status === 'error').length;
+            
+            document.getElementById('totalServices').textContent = totalServices;
+            document.getElementById('normalServices').textContent = normalServices;
+            document.getElementById('warningServices').textContent = warningServices;
+            document.getElementById('errorServices').textContent = errorServices;
+        }
+
+        // 데이터 시뮬레이션
+        function simulateDataChange() {
+            servicesData.forEach(service => {
+                if (Math.random() < 0.3) {
+                    // NBP 비율 변경 (더 부드러운 변화)
+                    const change = Math.floor(Math.random() * 11) - 5; // -5 ~ +5
+                    let newNbpRatio = service.nbpRatio + change;
+                    newNbpRatio = Math.max(0, Math.min(100, newNbpRatio));
+                    
+                    service.nbpRatio = newNbpRatio;
+                    service.drRatio = 100 - newNbpRatio;
+                    
+                    // 서버별 비율 재분배
+                    const nbpServers = service.servers.nbp.filter(s => s.ratio > 0);
+                    const drServers = service.servers.dr.filter(s => s.ratio > 0);
+                    
+                    if (nbpServers.length > 0) {
+                        const nbpPerServer = Math.floor(newNbpRatio / nbpServers.length);
+                        const nbpRemainder = newNbpRatio % nbpServers.length;
+                        
+                        nbpServers.forEach((server, index) => {
+                            server.ratio = nbpPerServer + (index < nbpRemainder ? 1 : 0);
+                            server.sessions = Math.max(0, server.sessions + Math.floor(Math.random() * 21) - 10);
+                        });
+                    }
+                    
+                    if (drServers.length > 0) {
+                        const drPerServer = Math.floor(service.drRatio / drServers.length);
+                        const drRemainder = service.drRatio % drServers.length;
+                        
+                        drServers.forEach((server, index) => {
+                            server.ratio = drPerServer + (index < drRemainder ? 1 : 0);
+                            server.sessions = Math.max(0, server.sessions + Math.floor(Math.random() * 21) - 10);
+                        });
+                    }
+                    
+                    // 상태 업데이트
+                    if (newNbpRatio === 100 || newNbpRatio === 0) {
+                        service.status = 'normal';
+                    } else if (newNbpRatio >= 20 && newNbpRatio <= 80) {
+                        service.status = 'warning';
+                    } else {
+                        service.status = 'error';
+                    }
+                    
+                    // 총 세션 수 업데이트
+                    service.totalSessions = service.servers.nbp.reduce((sum, s) => sum + s.sessions, 0) + 
+                                          service.servers.dr.reduce((sum, s) => sum + s.sessions, 0);
+                }
+            });
+        }
+
+        // 업데이트 시간 표시
+        function updateLastUpdateTime() {
+            const now = new Date();
+            const timeString = now.toLocaleString('ko-KR');
+            document.getElementById('lastUpdate').textContent = timeString;
+        }
+
+        // 전체 업데이트
+        function updateDashboard() {
+            simulateDataChange();
+            renderGauges();
+            updateHeaderStats();
+            updateLastUpdateTime();
+        }
+
+        // 초기화
+        document.addEventListener('DOMContentLoaded', function() {
+            renderGauges();
+            updateHeaderStats();
+            updateLastUpdateTime();
+            setupSearchListeners();
+            
+            // 3초마다 자동 업데이트
+            setInterval(updateDashboard, 3000);
+        });
+    </script>
+</body>
+</html>
